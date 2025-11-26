@@ -1,0 +1,23 @@
+# Backend Requirements
+# For running the weapon detection model and FastAPI server
+
+# Core framework
+fastapi[standard]
+
+# ML & Computer Vision
+torch
+torchvision
+ultralytics
+opencv-python
+numpy
+
+# HuggingFace integration
+huggingface-hub
+
+# WebSocket support
+websockets
+python-multipart
+
+# Utilities
+python-dotenv
+Pillow
