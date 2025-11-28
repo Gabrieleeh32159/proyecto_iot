@@ -26,3 +26,15 @@ DISPLAY_WINDOW_NAME = "Weapon Detection - Backend View"
 ALERT_COLOR = (0, 0, 255)  # Red in BGR
 BOX_COLOR = (0, 255, 0)    # Green in BGR
 TEXT_COLOR = (255, 255, 255)  # White in BGR
+
+# Servo Configuration
+CAMERA_FOV_HORIZONTAL = 60.0  # degrees (standard webcam)
+CAMERA_FOV_VERTICAL = 45.0    # degrees (standard webcam)
+
+SERVO_X_MIN = 0      # Minimum angle for X servo (pan)
+SERVO_X_MAX = 180    # Maximum angle for X servo (pan)
+SERVO_X_CENTER = 90  # Center position for X servo
+
+SERVO_Y_MIN = 0      # Minimum angle for Y servo (tilt)
+SERVO_Y_MAX = 180    # Maximum angle for Y servo (tilt)
+SERVO_Y_CENTER = 90  # Center position for Y servo
