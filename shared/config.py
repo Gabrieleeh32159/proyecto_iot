@@ -28,8 +28,8 @@ BOX_COLOR = (0, 255, 0)    # Green in BGR
 TEXT_COLOR = (255, 255, 255)  # White in BGR
 
 # Servo Configuration
-CAMERA_FOV_HORIZONTAL = 60.0  # degrees (standard webcam)
-CAMERA_FOV_VERTICAL = 45.0    # degrees (standard webcam)
+CAMERA_FOV_HORIZONTAL = 78.0  # degrees (standard webcam)
+CAMERA_FOV_VERTICAL = 62.0    # degrees (standard webcam)
 
 SERVO_X_MIN = 0      # Minimum angle for X servo (pan)
 SERVO_X_MAX = 180    # Maximum angle for X servo (pan)

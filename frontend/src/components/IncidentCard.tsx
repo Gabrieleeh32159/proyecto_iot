@@ -1,4 +1,4 @@
-import { MapPin, Clock, Shield } from "lucide-react";
+import { MapPin, Clock, Shield, Timer, DollarSign } from "lucide-react";
 
 interface Incident {
   id: number;
@@ -7,6 +7,8 @@ interface Incident {
   weaponType: string;
   imageUrl: string;
   severity: "high" | "medium" | "low";
+  duration?: number; // Duration in seconds
+  confidence?: number; // Confidence level
 }
 
 interface IncidentCardProps {
@@ -41,11 +43,11 @@ export function IncidentCard({ incident }: IncidentCardProps) {
     <div
       className={`${severityColors[incident.severity]} border rounded-xl overflow-hidden backdrop-blur-sm hover:scale-105 transition-transform`}
     >
-      <div className="relative h-48 overflow-hidden bg-black/50">
+      <div className="relative overflow-hidden bg-black/50 flex items-center justify-center" style={{ aspectRatio: '4/3' }}>
         <img
           src={incident.imageUrl}
           alt={`Incidente ${incident.id}`}
-          className="w-full h-full object-cover opacity-90"
+          className="w-full h-full object-contain opacity-90"
         />
         <div className="absolute top-2 right-2 bg-black/70 px-3 py-1 rounded-lg text-xs">
           {severityLabels[incident.severity]}
@@ -60,10 +62,22 @@ export function IncidentCard({ incident }: IncidentCardProps) {
           <MapPin className="w-4 h-4 text-blue-400" />
           <span>{incident.location}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 mb-2 text-sm">
           <Shield className="w-4 h-4 text-blue-400" />
           <span>{incident.weaponType}</span>
         </div>
+        {incident.duration !== undefined && (
+          <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-white/10">
+            <div className="flex items-center gap-2 text-sm text-cyan-300">
+              <Timer className="w-4 h-4" />
+              <span>{incident.duration}s</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-green-300 font-semibold">
+              <DollarSign className="w-4 h-4" />
+              <span>${(incident.duration * 0.01).toFixed(2)}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

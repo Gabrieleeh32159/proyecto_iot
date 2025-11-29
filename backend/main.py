@@ -3,8 +3,11 @@ FastAPI WebSocket server for weapon detection
 Receives frames from webcam client, runs inference, and streams back results
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 import cv2
 import numpy as np
 import base64
@@ -14,6 +17,7 @@ import time
 from typing import List
 import sys
 import os
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +26,10 @@ from hybrid_tracker import HybridWeaponTracker
 from servo_controller import ServoController
 
 app = FastAPI(title="Weapon Detection API")
+
+# Create directory for storing GIFs
+GIFS_DIR = Path(__file__).parent / "incident_gifs"
+GIFS_DIR.mkdir(exist_ok=True)
 
 # CORS middleware
 app.add_middleware(
@@ -32,6 +40,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request model for saving GIF
+class SaveGifRequest(BaseModel):
+    incident_id: int
+    gif_data: str  # base64 encoded GIF
+
 # Initialize hybrid tracker and servo controller
 tracker = HybridWeaponTracker(
     target_labels=["Gun"],
@@ -39,7 +52,7 @@ tracker = HybridWeaponTracker(
     conf_threshold_redetect=0.6,
     yolo_refresh_every=10,
     timeout_seconds=5.0,
-    fps=30.0  # Will be updated with actual FPS from webcam
+    fps=10.0  # Default to 10 FPS (typical for network streams)
 )
 servo_controller = ServoController()
 
@@ -95,6 +108,43 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "model_loaded": tracker.yolo_model is not None}
+
+
+@app.post("/api/save-gif")
+async def save_gif(request: SaveGifRequest):
+    """
+    Save a GIF file to the server
+    Returns the URL to access the GIF
+    """
+    try:
+        # Remove data URL prefix if present
+        gif_data = request.gif_data
+        if gif_data.startswith('data:image/gif;base64,'):
+            gif_data = gif_data.replace('data:image/gif;base64,', '')
+        
+        # Decode base64
+        gif_bytes = base64.b64decode(gif_data)
+        
+        # Save to file
+        filename = f"incident_{request.incident_id}.gif"
+        filepath = GIFS_DIR / filename
+        
+        with open(filepath, 'wb') as f:
+            f.write(gif_bytes)
+        
+        # Return URL
+        gif_url = f"http://localhost:{WEBSOCKET_PORT}/gifs/{filename}"
+        print(f"[API] GIF saved: {filename} ({len(gif_bytes)} bytes)")
+        
+        return {
+            "success": True,
+            "url": gif_url,
+            "filename": filename,
+            "size": len(gif_bytes)
+        }
+    except Exception as e:
+        print(f"[API] Error saving GIF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.websocket("/ws/webcam")
@@ -283,10 +333,18 @@ async def websocket_servos_endpoint(websocket: WebSocket):
         manager.disconnect_servo(websocket)
 
 
+# Mount static files for serving GIFs (must be at the end, after all routes)
+app.mount("/gifs", StaticFiles(directory=str(GIFS_DIR)), name="gifs")
+
+
 if __name__ == "__main__":
     import uvicorn
     print(f"Starting server on port {WEBSOCKET_PORT}")
     print("Endpoints:")
+    print(f"  - HTTP (root): http://localhost:{WEBSOCKET_PORT}/")
+    print(f"  - HTTP (health): http://localhost:{WEBSOCKET_PORT}/health")
+    print(f"  - POST (save-gif): http://localhost:{WEBSOCKET_PORT}/api/save-gif")
+    print(f"  - Static (gifs): http://localhost:{WEBSOCKET_PORT}/gifs/")
     print(f"  - WebSocket (webcam): ws://localhost:{WEBSOCKET_PORT}/ws/webcam")
     print(f"  - WebSocket (display): ws://localhost:{WEBSOCKET_PORT}/ws/display")
     print(f"  - WebSocket (servos): ws://localhost:{WEBSOCKET_PORT}/ws/servos")

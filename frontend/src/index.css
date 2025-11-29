@@ -53,6 +53,10 @@
     --color-yellow-500: oklch(.795 .184 86.047);
     --color-yellow-900: oklch(.421 .095 57.708);
     --color-green-500: oklch(.723 .219 149.579);
+    --color-green-200: oklch(.882 .159 154.579);
+    --color-green-400: oklch(.789 .219 149.579);
+    --color-green-600: oklch(.609 .196 151.579);
+    --color-green-800: oklch(.45 .135 150.535);
     --color-green-900: oklch(.393 .095 152.535);
     --color-cyan-400: oklch(.789 .154 211.53);
     --color-cyan-600: oklch(.609 .126 221.723);
@@ -608,6 +612,10 @@
     border-color: var(--color-green-500);
   }
 
+  .border-green-600 {
+    border-color: var(--color-green-600);
+  }
+
   .border-indigo-600 {
     border-color: var(--color-indigo-600);
   }
@@ -804,6 +812,28 @@
     }
   }
 
+  .from-green-900\/40 {
+    --tw-gradient-from: color-mix(in srgb, oklch(.398 .15 145.5) 40%, transparent);
+    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .from-green-900\/40 {
+      --tw-gradient-from: color-mix(in oklab, var(--color-green-900) 40%, transparent);
+    }
+  }
+
+  .to-green-800\/40 {
+    --tw-gradient-to: color-mix(in srgb, oklch(.45 .15 145.5) 40%, transparent);
+    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .to-green-800\/40 {
+      --tw-gradient-to: color-mix(in oklab, var(--color-green-800) 40%, transparent);
+    }
+  }
+
   .to-indigo-800\/40 {
     --tw-gradient-to: color-mix(in srgb, oklch(.398 .195 277.366) 40%, transparent);
     --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
@@ -922,6 +952,18 @@
 
   .text-cyan-400 {
     color: var(--color-cyan-400);
+  }
+
+  .text-green-200 {
+    color: var(--color-green-200);
+  }
+
+  .text-green-300 {
+    color: var(--color-green-300);
+  }
+
+  .text-green-400 {
+    color: var(--color-green-400);
   }
 
   .text-indigo-400 {
