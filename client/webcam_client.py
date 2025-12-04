@@ -29,7 +29,8 @@ class WebcamClient:
         self.websocket_url = f"ws://{WEBSOCKET_HOST}:{WEBSOCKET_PORT}/ws/webcam"
         self.cap = None
         self.running = False
-        self.frame_delay = 1.0 / FPS_TARGET
+        self.frame_interval = 1.0 / FPS_TARGET  # Exact interval between frames
+        self.last_frame_time = 0  # Track last frame send time
     
     def initialize_camera(self):
         """Initialize webcam capture"""
@@ -109,13 +110,21 @@ class WebcamClient:
                 ack_task = asyncio.create_task(handle_acks())
                 
                 try:
+                    self.last_frame_time = time.time()
+                    
                     while self.running:
-                        loop_start = time.time()
+                        # Wait until next frame time (strict 10 FPS)
+                        current_time = time.time()
+                        time_since_last = current_time - self.last_frame_time
+                        
+                        if time_since_last < self.frame_interval:
+                            await asyncio.sleep(self.frame_interval - time_since_last)
+                        
+                        self.last_frame_time = time.time()
                         
                         # Capture frame
                         frame = self.capture_frame()
                         if frame is None:
-                            await asyncio.sleep(0.1)
                             continue
                         
                         # Encode frame
@@ -139,12 +148,6 @@ class WebcamClient:
                             print(f"Send error: {e}")
                             del frame, encoded_frame, message
                             break
-                        
-                        # Frame rate control
-                        elapsed = time.time() - loop_start
-                        sleep_time = max(0, self.frame_delay - elapsed)
-                        if sleep_time > 0:
-                            await asyncio.sleep(sleep_time)
                         
                         # Discard frame data
                         del frame, encoded_frame, message

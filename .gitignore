@@ -53,3 +53,5 @@ Thumbs.db
 test_*.py
 tmp/
 temp/
+
+frontend/node_modules

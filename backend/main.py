@@ -22,7 +22,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.config import WEBSOCKET_PORT
-from hybrid_tracker import HybridWeaponTracker
+from simple_yolo_tracker import SimpleYoloTracker
 from servo_controller import ServoController
 
 app = FastAPI(title="Weapon Detection API")
@@ -30,6 +30,9 @@ app = FastAPI(title="Weapon Detection API")
 # Create directory for storing GIFs
 GIFS_DIR = Path(__file__).parent / "incident_gifs"
 GIFS_DIR.mkdir(exist_ok=True)
+
+# Incidents metadata file
+INCIDENTS_FILE = GIFS_DIR / "incidents.json"
 
 # CORS middleware
 app.add_middleware(
@@ -44,15 +47,39 @@ app.add_middleware(
 class SaveGifRequest(BaseModel):
     incident_id: int
     gif_data: str  # base64 encoded GIF
+    timestamp: str = ""
+    location: str = "Camera 1"
+    weaponType: str = "Gun"
+    severity: str = "medium"
+    confidence: float = 0.0
+    duration: int = 0
 
-# Initialize hybrid tracker and servo controller
-tracker = HybridWeaponTracker(
+
+def load_incidents_metadata() -> List[dict]:
+    """Load incidents metadata from JSON file"""
+    if INCIDENTS_FILE.exists():
+        try:
+            with open(INCIDENTS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[API] Error loading incidents: {e}")
+    return []
+
+
+def save_incidents_metadata(incidents: List[dict]):
+    """Save incidents metadata to JSON file"""
+    try:
+        with open(INCIDENTS_FILE, 'w') as f:
+            json.dump(incidents, f, indent=2)
+    except Exception as e:
+        print(f"[API] Error saving incidents metadata: {e}")
+
+# Initialize simple YOLO tracker and servo controller
+tracker = SimpleYoloTracker(
     target_labels=["Gun"],
-    conf_threshold_initial=0.8,
-    conf_threshold_redetect=0.6,
-    yolo_refresh_every=10,
+    conf_threshold=0.6,
     timeout_seconds=5.0,
-    fps=10.0  # Default to 10 FPS (typical for network streams)
+    tracker_type="botsort.yaml"
 )
 servo_controller = ServoController()
 
@@ -110,10 +137,63 @@ async def health():
     return {"status": "healthy", "model_loaded": tracker.yolo_model is not None}
 
 
+@app.get("/api/incidents")
+async def get_incidents():
+    """
+    Get all stored incidents with their metadata
+    """
+    incidents = load_incidents_metadata()
+    
+    # Calculate stats
+    now = time.time()
+    month_start = time.mktime(time.strptime(time.strftime("%Y-%m-01"), "%Y-%m-%d"))
+    
+    incidents_this_month = [
+        inc for inc in incidents 
+        if time.mktime(time.strptime(inc['timestamp'][:10], "%Y-%m-%d")) >= month_start
+    ]
+    
+    total_seconds = sum(inc.get('duration', 0) for inc in incidents)
+    monthly_seconds = sum(inc.get('duration', 0) for inc in incidents_this_month)
+    monthly_cost = monthly_seconds * 0.01
+    
+    return {
+        "incidents": incidents,
+        "stats": {
+            "total": len(incidents),
+            "thisMonth": len(incidents_this_month),
+            "totalSeconds": total_seconds,
+            "monthlySeconds": monthly_seconds,
+            "monthlyCost": monthly_cost
+        }
+    }
+
+
+@app.delete("/api/incidents/{incident_id}")
+async def delete_incident(incident_id: int):
+    """
+    Delete an incident and its GIF
+    """
+    try:
+        # Remove from metadata
+        incidents = load_incidents_metadata()
+        incidents = [inc for inc in incidents if inc['id'] != incident_id]
+        save_incidents_metadata(incidents)
+        
+        # Remove GIF file
+        gif_path = GIFS_DIR / f"incident_{incident_id}.gif"
+        if gif_path.exists():
+            gif_path.unlink()
+        
+        return {"success": True, "message": f"Incident {incident_id} deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/save-gif")
 async def save_gif(request: SaveGifRequest):
     """
-    Save a GIF file to the server
+    Save a GIF file to the server and store incident metadata
     Returns the URL to access the GIF
     """
     try:
@@ -132,8 +212,28 @@ async def save_gif(request: SaveGifRequest):
         with open(filepath, 'wb') as f:
             f.write(gif_bytes)
         
-        # Return URL
+        # Build URL
         gif_url = f"http://localhost:{WEBSOCKET_PORT}/gifs/{filename}"
+        
+        # Save incident metadata
+        incidents = load_incidents_metadata()
+        
+        # Check for duplicate
+        if not any(inc['id'] == request.incident_id for inc in incidents):
+            incident_data = {
+                "id": request.incident_id,
+                "timestamp": request.timestamp or time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "location": request.location,
+                "weaponType": request.weaponType,
+                "imageUrl": gif_url,
+                "severity": request.severity,
+                "confidence": request.confidence,
+                "duration": request.duration
+            }
+            incidents.insert(0, incident_data)  # Add at beginning (newest first)
+            save_incidents_metadata(incidents)
+            print(f"[API] Incident metadata saved: {request.incident_id}")
+        
         print(f"[API] GIF saved: {filename} ({len(gif_bytes)} bytes)")
         
         return {

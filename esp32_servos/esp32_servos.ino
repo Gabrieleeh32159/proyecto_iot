@@ -22,9 +22,9 @@ void onWebSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       break;
       
     case WStype_TEXT:
-      // Llegó un texto! Ej: "90,97"
+      // Llegó un texto! Ej: "90,120"
       String texto = (char*)payload;
-      Serial.print("🎯 Comando recibido: ");
+      Serial.print("Comando recibido: ");
       Serial.println(texto);
 
       // --- PARSEO DE DATOS (Separar por coma) ---
@@ -40,12 +40,8 @@ void onWebSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         miServo1.write(valX);
         miServo2.write(valY);
         
-        Serial.printf("✓ Servos movidos -> X: %d°, Y: %d°\n", valX, valY);
+        Serial.printf("Movimiento -> X: %d, Y: %d\n", valX, valY);
       }
-      break;
-      
-    case WStype_DISCONNECTED:
-      Serial.println("🔴 Desconectado del Server");
       break;
   }
 }
@@ -62,10 +58,8 @@ void setup() {
 
   // Configura tu Host de Ngrok
   webSocket.setExtraHeaders("ngrok-skip-browser-warning: true");
-  webSocket.beginSSL("b6afd4cbe291.ngrok-free.app", 443, "/ws/servos");
+  webSocket.beginSSL("16fe09f35d96.ngrok-free.app", 443, "/ws/servos");
   webSocket.onEvent(onWebSocketEvent);
-  
-  Serial.println("✓ Esperando comandos de servos...");
 }
 
 void loop() {

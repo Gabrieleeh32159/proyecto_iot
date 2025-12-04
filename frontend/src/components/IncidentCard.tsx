@@ -1,5 +1,7 @@
 import { MapPin, Clock, Shield, Timer, DollarSign } from "lucide-react";
 
+const API_URL = 'http://localhost:8000';
+
 interface Incident {
   id: number;
   timestamp: string;
@@ -28,6 +30,12 @@ export function IncidentCard({ incident }: IncidentCardProps) {
     low: "Baja",
   };
 
+  // Build full image URL (handle both relative and absolute URLs)
+  const getImageUrl = (url: string) => {
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url}`;
+  };
+
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString("es-ES", {
@@ -45,7 +53,7 @@ export function IncidentCard({ incident }: IncidentCardProps) {
     >
       <div className="relative overflow-hidden bg-black/50 flex items-center justify-center" style={{ aspectRatio: '4/3' }}>
         <img
-          src={incident.imageUrl}
+          src={getImageUrl(incident.imageUrl)}
           alt={`Incidente ${incident.id}`}
           className="w-full h-full object-contain opacity-90"
         />

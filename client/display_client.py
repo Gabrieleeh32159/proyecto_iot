@@ -68,7 +68,7 @@ class DisplayClient:
         
         # Add alert if weapon detected
         if weapon_detected:
-            alert_text = "⚠️ WEAPON DETECTED!"
+            alert_text = "WEAPON DETECTED!"
             text_size = cv2.getTextSize(alert_text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)[0]
             text_x = (width - text_size[0]) // 2
             

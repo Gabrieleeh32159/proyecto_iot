@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { IncidentCard } from './components/IncidentCard';
 import { StatsCard } from './components/StatsCard';
 import { AccumulatedChart } from './components/AccumulatedChart';
-import { AlertTriangle, Calendar, DollarSign, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, Calendar, DollarSign, Wifi, WifiOff, Filter } from 'lucide-react';
 import { WebSocketService } from './services/websocket';
-import { incidentStorage, type StoredIncident } from './services/incidentStorage';
 // @ts-ignore - gifshot doesn't have types
 import gifshot from 'gifshot';
+
+const API_URL = 'http://localhost:8000';
 
 interface Incident {
   id: number;
@@ -15,6 +16,8 @@ interface Incident {
   weaponType: string;
   imageUrl: string;
   severity: 'high' | 'medium' | 'low';
+  duration?: number;
+  confidence?: number;
 }
 
 interface ActiveIncidentSession {
@@ -38,43 +41,32 @@ export default function App() {
   const [monthlyCost, setMonthlyCost] = useState(0);
   const [activeIncident, setActiveIncident] = useState<ActiveIncidentSession | null>(null);
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const incidentsPerPage = 6;
   const listRef = useRef<HTMLDivElement>(null);
   const closeIncidentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Helper function to update stats after saving incident
-  const updateStatsAfterSave = () => {
-    const stats = incidentStorage.getStats();
-    console.log('[Stats] Raw stats:', stats);
-    setTotalIncidents(stats.total);
-    setMonthIncidents(stats.thisMonth);
-    setMonthlyCost(stats.monthlyCost || 0);
-    console.log(`💰 Monthly cost updated: $${(stats.monthlyCost || 0).toFixed(2)} (${stats.monthlySeconds}s at $0.01/s)`);
+  // Load incidents from backend API
+  const loadIncidentsFromBackend = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/incidents`);
+      if (response.ok) {
+        const data = await response.json();
+        setIncidents(data.incidents);
+        setTotalIncidents(data.stats.total);
+        setMonthIncidents(data.stats.thisMonth);
+        setMonthlyCost(data.stats.monthlyCost || 0);
+        console.log(`[App] Loaded ${data.incidents.length} incidents from backend`);
+        console.log(`💰 Monthly cost: $${(data.stats.monthlyCost || 0).toFixed(2)}`);
+      }
+    } catch (error) {
+      console.error('[App] Error loading incidents from backend:', error);
+    }
   };
 
-  // Initialize with clean state on mount
+  // Initialize - load from backend
   useEffect(() => {
-    // Clear any old mock data on first load
-    const isFirstLoad = !localStorage.getItem('app_initialized');
-    let loadedIncidents = [];
-    
-    if (isFirstLoad) {
-      console.log('[App] First load - starting with empty history');
-      incidentStorage.clearAllIncidents();
-      localStorage.setItem('app_initialized', 'true');
-      setIncidents([]);
-    } else {
-      // Load incidents from storage on subsequent loads
-      loadedIncidents = incidentStorage.loadIncidents();
-      setIncidents(loadedIncidents);
-    }
-    
-    const stats = incidentStorage.getStats();
-    setTotalIncidents(stats.total);
-    setMonthIncidents(stats.thisMonth);
-    setMonthlyCost(stats.monthlyCost || 0);
-    
-    console.log('[App] Loaded', loadedIncidents.length, 'incidents from storage');
+    loadIncidentsFromBackend();
   }, []);
 
   // WebSocket connection for real-time weapon detection
@@ -159,9 +151,18 @@ export default function App() {
             console.log('✅ Incident ended, will save in 5 seconds:', currentActive.id);
             
             // Keep showing video for 5 more seconds, then save and close
-            closeIncidentTimerRef.current = setTimeout(() => {
+            closeIncidentTimerRef.current = setTimeout(async () => {
               console.log('💾 Saving incident after 5 second delay:', currentActive.id);
               console.log(`📹 Creating GIF from ${currentActive.capturedFrames.length} frames`);
+              
+              const duration = Math.round(
+                (Date.now() - new Date(currentActive.startTime).getTime()) / 1000
+              );
+              
+              // Determine severity based on confidence
+              let severity: 'high' | 'medium' | 'low' = 'medium';
+              if (currentActive.confidence >= 0.85) severity = 'high';
+              else if (currentActive.confidence < 0.7) severity = 'low';
               
               // Create GIF from captured frames
               if (currentActive.capturedFrames.length >= 2) {
@@ -169,9 +170,9 @@ export default function App() {
                   images: currentActive.capturedFrames,
                   gifWidth: 640,
                   gifHeight: 480,
-                  interval: 0.1, // 100ms between frames (10 FPS)
+                  interval: 0.1,
                   numFrames: Math.min(currentActive.capturedFrames.length, 20),
-                  frameDuration: 1, // Each frame duration
+                  frameDuration: 1,
                   sampleInterval: 10,
                   numWorkers: 2
                 }, async (obj: any) => {
@@ -179,159 +180,62 @@ export default function App() {
                     const gifDataUrl = obj.image;
                     console.log('✅ GIF created successfully');
                     
-                    const duration = Math.round(
-                      (Date.now() - new Date(currentActive.startTime).getTime()) / 1000
-                    );
-                    
-                    // Save GIF to backend server
-                    let gifUrl = gifDataUrl; // fallback to data URL
+                    // Save GIF and metadata to backend
                     try {
-                      const response = await fetch('http://localhost:8000/api/save-gif', {
+                      const response = await fetch(`${API_URL}/api/save-gif`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           incident_id: currentActive.id,
-                          gif_data: gifDataUrl
+                          gif_data: gifDataUrl,
+                          timestamp: currentActive.startTime,
+                          location: 'Camera 1',
+                          weaponType: currentActive.weaponType,
+                          severity,
+                          confidence: currentActive.confidence,
+                          duration
                         })
                       });
                       
                       if (response.ok) {
                         const result = await response.json();
-                        gifUrl = result.url;
                         console.log(`💾 GIF saved to server: ${result.filename} (${result.size} bytes)`);
+                        
+                        // Reload incidents from backend
+                        await loadIncidentsFromBackend();
+                        console.log(`📝 Incident saved (duration: ${duration}s, cost: $${(duration * 0.01).toFixed(2)})`);
                       } else {
-                        console.warn('⚠️ Failed to save GIF to server, using data URL');
+                        console.error('❌ Failed to save GIF to server');
                       }
                     } catch (error) {
                       console.error('❌ Error saving GIF to server:', error);
                     }
                     
-                    // Determine severity based on confidence
-                    let severity: 'high' | 'medium' | 'low' = 'medium';
-                    if (currentActive.confidence >= 0.85) severity = 'high';
-                    else if (currentActive.confidence < 0.7) severity = 'low';
-                    
-                    const finalIncident: StoredIncident = {
-                      id: currentActive.id,
-                      timestamp: currentActive.startTime,
-                      location: 'Camera 1',
-                      weaponType: currentActive.weaponType,
-                      imageUrl: gifUrl, // Use server URL or data URL as fallback
-                      severity,
-                      confidence: currentActive.confidence,
-                      duration,
-                      bbox: currentActive.bbox
-                    };
-                    
-                    // Save to storage
-                    incidentStorage.saveIncident(finalIncident);
-                    
-                    // Add to incidents list
-                    setIncidents(prev => [finalIncident, ...prev]);
-                    setCurrentPage(1);
-                    
-                    // Update stats including monthly cost
-                    updateStatsAfterSave();
-                    
-                    console.log(`📝 Incident saved with GIF (duration: ${duration}s, cost: $${(duration * 0.01).toFixed(2)})`);
-                    
-                    // Now clear everything
+                    // Clear UI
                     setShowingNewIncident(false);
                     setActiveIncident(null);
                     setCurrentImage(null);
+                    closeIncidentTimerRef.current = null;
                     
-                    // Scroll to list
                     if (listRef.current) {
                       listRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                   } else {
                     console.error('❌ Error creating GIF:', obj.error);
-                    // Fallback to first frame if GIF creation fails
-                    setCurrentImage((currentImg) => {
-                      const duration = Math.round(
-                        (Date.now() - new Date(currentActive.startTime).getTime()) / 1000
-                      );
-                      
-                      let severity: 'high' | 'medium' | 'low' = 'medium';
-                      if (currentActive.confidence >= 0.85) severity = 'high';
-                      else if (currentActive.confidence < 0.7) severity = 'low';
-                      
-                      const finalIncident: StoredIncident = {
-                        id: currentActive.id,
-                        timestamp: currentActive.startTime,
-                        location: 'Camera 1',
-                        weaponType: currentActive.weaponType,
-                        imageUrl: currentImg || currentActive.firstFrame,
-                        severity,
-                        confidence: currentActive.confidence,
-                        duration,
-                        bbox: currentActive.bbox
-                      };
-                      
-                      incidentStorage.saveIncident(finalIncident);
-                      setIncidents(prev => [finalIncident, ...prev]);
-                      setCurrentPage(1);
-                      
-                      // Update stats including monthly cost
-                      updateStatsAfterSave();
-                      
-                      console.log(`📝 Incident saved with static image (fallback)`);
-                      
-                      setShowingNewIncident(false);
-                      setActiveIncident(null);
-                      
-                      if (listRef.current) {
-                        listRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                      
-                      return null;
-                    });
+                    setShowingNewIncident(false);
+                    setActiveIncident(null);
+                    setCurrentImage(null);
+                    closeIncidentTimerRef.current = null;
                   }
                 });
               } else {
-                // Not enough frames for GIF, use static image
-                console.log('⚠️ Not enough frames for GIF, using static image');
-                setCurrentImage((currentImg) => {
-                  const duration = Math.round(
-                    (Date.now() - new Date(currentActive.startTime).getTime()) / 1000
-                  );
-                  
-                  let severity: 'high' | 'medium' | 'low' = 'medium';
-                  if (currentActive.confidence >= 0.85) severity = 'high';
-                  else if (currentActive.confidence < 0.7) severity = 'low';
-                  
-                  const finalIncident: StoredIncident = {
-                    id: currentActive.id,
-                    timestamp: currentActive.startTime,
-                    location: 'Camera 1',
-                    weaponType: currentActive.weaponType,
-                    imageUrl: currentImg || currentActive.firstFrame,
-                    severity,
-                    confidence: currentActive.confidence,
-                    duration,
-                    bbox: currentActive.bbox
-                  };
-                  
-                  incidentStorage.saveIncident(finalIncident);
-                  setIncidents(prev => [finalIncident, ...prev]);
-                  setCurrentPage(1);
-                  
-                  // Update stats including monthly cost
-                  updateStatsAfterSave();
-                  
-                  console.log(`📝 Incident saved with static image`);
-                  
-                  setShowingNewIncident(false);
-                  setActiveIncident(null);
-                  
-                  if (listRef.current) {
-                    listRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                  
-                  return null;
-                });
+                console.log('⚠️ Not enough frames for GIF, skipping save');
+                setShowingNewIncident(false);
+                setActiveIncident(null);
+                setCurrentImage(null);
+                closeIncidentTimerRef.current = null;
               }
-            }, 5000); // 5 seconds delay
+            }, 5000);
           }
           
           return currentActive;
@@ -349,11 +253,34 @@ export default function App() {
     };
   }, []);
 
+  // Get unique months from incidents for filter
+  const availableMonths = Array.from(new Set(
+    incidents.map(inc => {
+      const date = new Date(inc.timestamp);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    })
+  )).sort().reverse();
+
+  const monthNames: { [key: string]: string } = {
+    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+    '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+    '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+  };
+
+  // Filter incidents by selected month
+  const filteredIncidents = selectedMonth === 'all' 
+    ? incidents 
+    : incidents.filter(inc => {
+        const date = new Date(inc.timestamp);
+        const incMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        return incMonth === selectedMonth;
+      });
+
   // Paginación
   const indexOfLastIncident = currentPage * incidentsPerPage;
   const indexOfFirstIncident = indexOfLastIncident - incidentsPerPage;
-  const currentIncidents = incidents.slice(indexOfFirstIncident, indexOfLastIncident);
-  const totalPages = Math.ceil(incidents.length / incidentsPerPage);
+  const currentIncidents = filteredIncidents.slice(indexOfFirstIncident, indexOfLastIncident);
+  const totalPages = Math.ceil(filteredIncidents.length / incidentsPerPage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1628] via-[#132a4a] to-[#1e3a5f] text-white p-8">
@@ -412,7 +339,7 @@ export default function App() {
 
         {/* Chart */}
         <div className="mb-8">
-          <AccumulatedChart />
+          <AccumulatedChart incidents={incidents} />
         </div>
 
         {/* Nueva imagen recibida vía websocket */}
@@ -453,16 +380,44 @@ export default function App() {
 
         {/* Lista de incidentes */}
         <div ref={listRef}>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl">Historial de Incidentes</h2>
-            <div className="text-blue-300">
-              Página {currentPage} de {totalPages}
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+            <h2 className="text-2xl font-semibold">Historial de Incidentes</h2>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              {/* Filtro por mes */}
+              <div className="flex items-center gap-2 bg-blue-900/30 px-4 py-2 rounded-xl border border-blue-700/50">
+                <Filter className="w-4 h-4 text-blue-400" />
+                <span className="text-blue-300 text-sm">Filtrar:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-blue-800/50 border border-blue-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="all">Todos los meses</option>
+                  {availableMonths.map(month => {
+                    const [year, m] = month.split('-');
+                    return (
+                      <option key={month} value={month}>
+                        {monthNames[m]} {year}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              {/* Contador de incidentes */}
+              <div className="bg-cyan-900/30 px-4 py-2 rounded-xl border border-cyan-700/50 text-sm">
+                <span className="text-cyan-300">{filteredIncidents.length} incidentes</span>
+                <span className="text-blue-400 mx-2">•</span>
+                <span className="text-blue-300">Página {currentPage} de {totalPages || 1}</span>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {currentIncidents.map((incident) => (
-              <IncidentCard key={incident.id} incident={incident} />
+            {currentIncidents.map((incident, index) => (
+              <IncidentCard key={`${incident.id}-${incident.timestamp}-${index}`} incident={incident} />
             ))}
           </div>
 

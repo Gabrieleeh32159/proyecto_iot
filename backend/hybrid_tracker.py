@@ -72,7 +72,7 @@ class HybridWeaponTracker:
         # FPS tracking for accurate timeout
         self.last_process_time = None
         self.frame_times = []
-        self.fps_window = 30  # Calculate FPS over last 30 frames
+        self.fps_window = 45  # Calculate FPS over last 30 frames
         
         # Load YOLO model
         self.device = self._get_device()

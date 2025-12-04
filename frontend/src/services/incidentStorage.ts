@@ -56,6 +56,21 @@ class IncidentStorageService {
     try {
       const incidents = this.loadIncidents();
       
+      // Check for duplicate ID - skip if already exists
+      const existingIndex = incidents.findIndex(inc => inc.id === incident.id);
+      if (existingIndex !== -1) {
+        console.log('[Storage] Incident already exists, skipping:', incident.id);
+        return;
+      }
+      
+      // Don't store data URLs in localStorage (too large)
+      // Only store server URLs
+      if (incident.imageUrl.startsWith('data:')) {
+        console.warn('[Storage] Skipping data URL storage for incident:', incident.id);
+        // Keep a placeholder or empty string
+        incident.imageUrl = '';
+      }
+      
       // Add new incident at the beginning
       incidents.unshift(incident);
       
@@ -184,6 +199,60 @@ class IncidentStorageService {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STATS_KEY);
     console.log('[Storage] All incidents cleared');
+  }
+
+  /**
+   * Clean up incidents with invalid image URLs (data URLs or empty)
+   * Returns number of removed incidents
+   */
+  cleanupInvalidIncidents(): number {
+    const incidents = this.loadIncidents();
+    const validIncidents = incidents.filter(inc => {
+      // Keep only incidents with valid server URLs
+      const hasValidUrl = inc.imageUrl && 
+                          inc.imageUrl.startsWith('http') && 
+                          !inc.imageUrl.startsWith('data:');
+      if (!hasValidUrl) {
+        console.log(`[Storage] Removing incident with invalid URL: ${inc.id}`);
+      }
+      return hasValidUrl;
+    });
+    
+    const removedCount = incidents.length - validIncidents.length;
+    
+    if (removedCount > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(validIncidents));
+      this.updateStats();
+      console.log(`[Storage] Cleaned up ${removedCount} incidents with invalid URLs`);
+    }
+    
+    return removedCount;
+  }
+
+  /**
+   * Remove duplicate incidents by ID
+   */
+  removeDuplicates(): number {
+    const incidents = this.loadIncidents();
+    const seen = new Set<number>();
+    const uniqueIncidents = incidents.filter(inc => {
+      if (seen.has(inc.id)) {
+        console.log(`[Storage] Removing duplicate incident: ${inc.id}`);
+        return false;
+      }
+      seen.add(inc.id);
+      return true;
+    });
+    
+    const removedCount = incidents.length - uniqueIncidents.length;
+    
+    if (removedCount > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(uniqueIncidents));
+      this.updateStats();
+      console.log(`[Storage] Removed ${removedCount} duplicate incidents`);
+    }
+    
+    return removedCount;
   }
 
   /**
