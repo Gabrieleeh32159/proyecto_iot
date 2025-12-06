@@ -1,0 +1,188 @@
+\documentclass{article}
+
+% Language setting
+% Replace `english' with e.g. `spanish' to change the document language
+\usepackage[spanish]{babel}
+
+% Set page size and margins
+% Replace `letterpaper' with `a4paper' for UK/EU standard size
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{svg}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{listings}
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily,
+  commentstyle=\textit,
+  keywordstyle=\textbf,
+  stringstyle=\texttt,
+  identifierstyle=\texttt,
+  showstringspaces=false,
+  frame=single,
+  backgroundcolor=\color{lightgray},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  numbersep=5pt
+}
+
+\title{Proyecto: Torreta inteligente}
+\author{Renato Cernades \\ 
+        Max Antunez  \\
+        Gabriel Espinoza
+        }
+
+\begin{document}
+\maketitle
+
+\section{Introducción}
+
+\subsection{Problematica}
+
+En el Perú, la situación de la seguridad ciudadana muestra una tendencia preocupante: los homicidios registrados en 2024 aumento un 299\% con respecto al año 2017 \cite{statista_peru_homicidios}, mientras que las denuncias por extorsión a nivel nacional aumentó un 344\% solamente entre 2021 y 2022, generando un clima de temor constante en la población. Sin embargo, frente a este incremento de la violencia, las autoridades no han destinado un presupuesto significativo a la seguridad nacional, lo que evidencia una brecha entre la magnitud del problema y la respuesta institucional \cite{lacamara_seguridad_2025}. Esta falta de ajuste en los recursos asignados plantea interrogantes sobre la capacidad del Estado para enfrentar eficazmente el crecimiento de la criminalidad. Para garantizar la tranquilidad de los ciudadanos, nuestra propuesta es un sistema inteligente que responda rápidamente a la presencia de un arma de fuego, inmovilizando al portador y alertando a las autoridades correspondientes.
+
+
+\subsection{Marco Teórico}
+
+\begin{enumerate}
+    \item \textbf{MQTT: } Es un protocolo de mensajería ligero diseñado para comunicaciones máquina-a-máquina (M2M) y para entornos de Internet de las Cosas (IoT) que presentan recursos limitados, redes con ancho de banda reducido o latencia elevada. MQTT se ejecuta sobre TCP/IP mediante una topología \textit{publish/subscribe}. En esta arquitectura existen dos tipos de sistemas: los clientes y los intermediarios (o \textit{brokers}). Los clientes no se comunican directamente entre sí, sino que lo hacen a través del intermediario, quien recibe los mensajes de los publicadores y los distribuye a los suscriptores interesados en un tema específico \cite{mqtt_org_2025}.
+
+    \item \textbf{ESP32: } Es un microcontrolador desarrollado por Espressif Systems que integra conectividad Wi-Fi y Bluetooth, lo que lo hace ideal para aplicaciones de Internet de las Cosas (IoT). Posee un procesador de doble núcleo Tensilica Xtensa LX6, memoria RAM integrada y soporte para múltiples periféricos como ADC, DAC, UART, SPI e I2C. 
+    Gracias a su bajo consumo energético y capacidad de conexión inalámbrica, el ESP32 puede actuar como cliente MQTT, publicando y suscribiéndose a tópicos en un \textit{broker} como Mosquitto. Estas características lo convierten en una plataforma versátil y ampliamente utilizada en proyectos de automatización, monitoreo y control remoto \cite{esp32}.
+
+    \item \textbf{YOLO: } (You Only Look Once) es un algoritmo de detección de objetos en tiempo real basado en redes neuronales convolucionales. Su principal característica es la capacidad de procesar imágenes completas en una sola pasada, identificando y clasificando múltiples objetos con gran rapidez y precisión. Gracias a su eficiencia, YOLO se utiliza ampliamente en aplicaciones de visión artificial, como sistemas de vigilancia, vehículos autónomos y proyectos de robótica, donde la detección inmediata de objetos es fundamental \cite{datacamp_yolo_2025}.
+
+    \item \textbf{Servomotor 180°: } Es un actuador rotativo que permite controlar la posición angular de su eje en un rango limitado, generalmente de 0° a 180°. Funciona mediante una señal de control PWM (modulación por ancho de pulso), que determina el ángulo de giro. Los servomotores de 180° son muy utilizados en proyectos de robótica y automatización debido a su precisión en el movimiento y facilidad de integración con microcontroladores como el ESP32 o la Raspberry Pi \cite{makerelectronico_servomotor_2025}.
+
+    \item \textbf{Motor reductor: } Es un dispositivo que combina un motor eléctrico con un sistema de engranajes reductores, cuyo objetivo es disminuir la velocidad de giro y aumentar el par de salida. Este tipo de motor es esencial en aplicaciones donde se requiere fuerza y control de movimiento, como en robots móviles, sistemas de transporte automatizado o mecanismos de precisión. Su uso permite optimizar la eficiencia energética y mejorar la estabilidad del sistema \cite{ingmecafenix_motorreductor_2025}.
+
+    \item \textbf{Raspberry Pi: } Es una computadora de placa reducida (single-board computer) desarrollada por la Raspberry Pi Foundation. Ofrece un entorno completo de procesamiento con sistema operativo basado en Linux, puertos de entrada/salida y conectividad de red. Debido a su bajo costo, tamaño compacto y versatilidad, la Raspberry Pi se emplea en proyectos educativos, de investigación y en aplicaciones de IoT, visión artificial y control de dispositivos. Puede integrarse con algoritmos como YOLO para procesamiento de imágenes en tiempo real, así como controlar periféricos como servomotores y motores reductores \cite{hardzone_raspberrypi_2025}.
+
+\end{enumerate}
+
+
+\section{Estado del Arte}
+
+La detección de armas en videovigilancia ha evolucionado significativamente, pasando de arquitecturas pesadas a modelos optimizados para el tiempo real. Un trabajo fundamental en este campo es el de Olmos, Tabik \& Herrera (2018), quienes propusieron un sistema de alarma basado en el detector de dos etapas Faster R-CNN. Si bien este modelo es computacionalmente más intenso, su contribución clave fue la introducción del concepto de \textbf{validación multi-frame}. Demostraron que para un sistema robusto, no es suficiente detectar un arma en un solo cuadro; se requiere una confirmación temporal (a través de múltiples \textit{frames}) para reducir drásticamente la tasa de falsos positivos, un aspecto crucial en sistemas de seguridad \cite{olmos_2018}.
+
+El principal desafío de los detectores de dos etapas es su latencia. El desarrollo de detectores de una etapa (\textit{one-stage}) marcó un hito en la viabilidad de la detección en tiempo real. En este contexto, Bochkovskiy et al. (2020) con \textbf{YOLOv4} consolidaron a la familia YOLO como el estándar de la industria. Mediante la introducción de un "Bag-of-Freebies" —un conjunto de mejoras en el entrenamiento que no añaden costo computacional en la inferencia— lograron elevar significativamente la precisión (mAP) sin sacrificar la velocidad (FPS) \cite{bochkovskiy_2020}.
+
+Sin embargo, la alta precisión en \textit{datasets} académicos no siempre se traduce en un buen rendimiento en el mundo real. Lim et al. (2019) evidenciaron este problema, conocido como el "domain gap". En sus pruebas con videos de CCTV reales, demostraron que la precisión (mAP) de los modelos \textbf{cae drásticamente} en condiciones adversas, como baja iluminación, compresión de video y desenfoque por movimiento (\textit{motion blur}) \cite{lim_2019}. Esto subraya la necesidad de entrenar modelos con datos realistas y validar su rendimiento en escenarios de campo.
+
+Más recientemente, y en un contexto local relevante para esta investigación, Figueroa Gómez \& Caballero Falcón (2023) realizaron una \textbf{comparación directa} entre dos arquitecturas modernas, YOLOV8 y DETR (Detection Transformers), para la detección de armas en Lima Metropolitana. Su estudio en un contexto realista es clave, ya que evalúa el \textit{trade-off} entre los modelos más avanzados. Sus resultados revelaron que, si bien ambos modelos son eficaces, DETR tiende a superar a YOLOV8 en precisión en situaciones más complejas \cite{figueroa_2023}. 
+
+Este conjunto de trabajos establece la base de nuestra propuesta para una \textbf{torreta inteligente}. Esta se fundamenta en utilizar un detector rápido (YOLO), validado temporalmente (siguiendo a Olmos et al. \cite{olmos_2018}), y desplegado en una arquitectura IoT. Dicha arquitectura, basada en MQTT y un ESP32, es la que finalmente orquesta la respuesta física de los servomotores, permitiendo así superar los desafíos del mundo real (identificados por Lim et al. \cite{lim_2019}).
+
+\section{Metodología}
+
+\subsection{Lista de componentes}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{5cm}|p{9cm}|}
+\hline
+\textbf{Componente} & \textbf{Uso y descripción} \\
+\hline
+2 servomotores 180° & Permiten el movimiento horizontal y vertical de la estructura, facilitando el seguimiento de objetivos en diferentes direcciones. \\
+\hline
+Cámara (1080p) & Captura video en alta definición para ser procesado posteriormente por el modelo YOLO. \\
+\hline
+Cables, tornillería y conectores & Elementos esenciales para realizar las conexiones eléctricas y el montaje físico de los componentes. \\
+\hline
+Arma de papel, cartón y ligas elásticas & Dispositivo simulado que representa una respuesta física no letal ante una amenaza, útil en demostraciones o prototipos. \\
+\hline
+1 servomotor 360° & Motor de rotación continua utilizado para generar disparos automáticos y repetitivos del mecanismo simulado. \\
+\hline
+Laptop (Servidor) & Ejecuta el modelo de inteligencia artificial YOLO para detección de objetos y actúa como broker MQTT para la comunicación entre dispositivos. \\
+\hline
+ESP32 & Microcontrolador que recibe instrucciones desde el servidor y controla los servomotores; también funciona como suscriptor MQTT. \\
+\hline
+3 LED & Indicadores visuales que validan el funcionamiento de los componentes, mostrando estados como encendido, conexión o error. \\
+\hline
+\end{tabular}
+\caption{Componentes y funciones de un sistema automatizado de detección y respuesta}
+\end{table}
+
+
+\subsection{Microcontrolador a usar}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{4.5cm}|p{9.5cm}|}
+\hline
+\textbf{Dispositivo} & \textbf{Uso y descripción detallada} \\
+\hline
+Raspberry Pi 4 & Actúa como nodo de procesamiento principal para la captura de video en tiempo real. Se encarga de adquirir los frames desde una cámara conectada, codificarlos y transmitirlos al servidor mediante protocolos como RTSP o HTTP. Además, puede ejecutar scripts para preprocesamiento de imágenes o enviar datos al modelo de detección alojado en otro equipo. \\
+\hline
+ESP32 & Microcontrolador de bajo consumo que se encarga del control físico de los servomotores. Funciona como cliente MQTT, recibiendo comandos desde el servidor para ejecutar movimientos precisos. También gestiona sensores, LEDs y otras salidas digitales, siendo ideal para nuestro proyecto. \\
+\hline
+\end{tabular}
+\caption{Descripción funcional de los microcontroladores en el sistema automatizado}
+\end{table}
+
+\subsection{Diagrama de bloques del sistema propuesto}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/diagramaBloques.png}
+    \caption{Diagrama de bloques del proyecto: Torreta inteligente}
+    \label{fig:placeholder}
+\end{figure}
+
+La arquitectura del sistema se compone de tres nodos principales: un nodo de borde, un servidor de inferencia y un nodo de control. A continuación se describe brevemente el flujo del diagrama:
+
+\begin{itemize}
+
+    \item \textbf{Nodo de Borde (Raspberry Pi):} 
+    La cámara captura continuamente frames, los cuales son procesados y enviados a través de la red Wi-Fi hacia el servidor de inferencia.
+
+    \item \textbf{Servidor de Inferencia / Broker / Dashboard:}
+    El servidor recibe los frames y ejecuta el modelo YOLO para realizar la detección de objetos.
+    Los resultados de las detecciones se publican mediante MQTT hacia el broker.  
+    Paralelamente, el servidor almacena metadatos y logs, y alimenta un dashboard web desde el cual también pueden publicarse comandos autorizados hacia el broker MQTT.
+
+    \item \textbf{MQTT Broker (Mosquitto):}
+    Actúa como intermediario entre el servidor de inferencia y el nodo de control, gestionando los mensajes publicados y distribuyéndolos a los suscriptores pertinentes.
+
+    \item \textbf{Nodo de Control (ESP32):}
+    El ESP32 se suscribe a los tópicos MQTT para recibir comandos de movimiento y activación.  
+    Según los mensajes recibidos, controla los servomotores (pan y tilt) y la activación del disparo.
+
+\end{itemize}
+
+En conjunto, este flujo permite procesar imágenes en el borde, realizar inferencia en un servidor centralizado y ejecutar acciones físicas mediante un nodo embebido controlado por mensajes MQTT.
+
+\section{Objetivos}
+
+Los objetivos de nuestro proyecto son:
+\begin{enumerate}
+    \item Diseñar e implementar un sistema capaz de detectar de manera automática y en tiempo real la presencia de armas de fuego en entornos determinados, utilizando técnicas deep learning, con el fin de generar alertas tempranas que permitan prevenir situaciones de riesgo y fortalecer la seguridad ciudadana.
+    \item Desarrollar un sistema de respuesta que permita neutralizar de forma segura y controlada a un atacante mediante mecanismos disuasivos no letales con el fin de proteger a las personas y reducir el riesgo de daños físicos en situaciones de amenaza.
+\end{enumerate}
+
+\section{Alcances}
+Los alcances de este proyecto son:
+
+\begin{enumerate}
+    \item El Diseño, desarrollo e implementación del protopito y las prueba piloto se realizará dentro de la universidad, con el objetivo de validar su funcionamiento en un entorno controlado.
+
+    \item Se llevará a cabo la instalación los componentes, motores y microcontroladores, integrados con un modelo de detección de armas basado en visión artificial, que permitirá identificar situaciones de riesgo en tiempo real de manera netamente académica y experimental.
+
+    \item El sistema incorporará un dispositivo incapaz de causar daño físico a las personas, asegurando las actiones del sistema sean seguras y disuasivas.
+\end{enumerate}
+\newpage
+
+
+\newpage
+
+\bibliographystyle{IEEEtran}
+\bibliography{bibliography}
+
+
+\end{document}

@@ -1,5 +1,105 @@
 [
   {
+    "id": 1764985134813,
+    "timestamp": "2025-12-06T01:38:54.813Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764985134813.gif",
+    "severity": "high",
+    "confidence": 0.8982992768287659,
+    "duration": 110
+  },
+  {
+    "id": 1764984921351,
+    "timestamp": "2025-12-06T01:35:21.351Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764984921351.gif",
+    "severity": "high",
+    "confidence": 0.8943194150924683,
+    "duration": 8
+  },
+  {
+    "id": 1764984890984,
+    "timestamp": "2025-12-06T01:34:50.984Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764984890984.gif",
+    "severity": "high",
+    "confidence": 0.8861172795295715,
+    "duration": 28
+  },
+  {
+    "id": 1764984874904,
+    "timestamp": "2025-12-06T01:34:34.904Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764984874904.gif",
+    "severity": "medium",
+    "confidence": 0.7683570981025696,
+    "duration": 14
+  },
+  {
+    "id": 1764984855490,
+    "timestamp": "2025-12-06T01:34:15.490Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764984855490.gif",
+    "severity": "low",
+    "confidence": 0.6153833270072937,
+    "duration": 6
+  },
+  {
+    "id": 1764984829407,
+    "timestamp": "2025-12-06T01:33:49.407Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764984829407.gif",
+    "severity": "medium",
+    "confidence": 0.8076938390731812,
+    "duration": 11
+  },
+  {
+    "id": 1764983879787,
+    "timestamp": "2025-12-06T01:17:59.787Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764983879787.gif",
+    "severity": "high",
+    "confidence": 0.8807646036148071,
+    "duration": 14
+  },
+  {
+    "id": 1764983869999,
+    "timestamp": "2025-12-06T01:17:49.999Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764983869999.gif",
+    "severity": "medium",
+    "confidence": 0.8390203714370728,
+    "duration": 5
+  },
+  {
+    "id": 1764983818544,
+    "timestamp": "2025-12-06T01:16:58.544Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764983818544.gif",
+    "severity": "high",
+    "confidence": 0.9325993657112122,
+    "duration": 44
+  },
+  {
+    "id": 1764983216337,
+    "timestamp": "2025-12-06T01:06:56.337Z",
+    "location": "Camera 1",
+    "weaponType": "Gun",
+    "imageUrl": "http://localhost:8000/gifs/incident_1764983216337.gif",
+    "severity": "high",
+    "confidence": 0.9076465964317322,
+    "duration": 17
+  },
+  {
     "id": 1764379793174,
     "timestamp": "2025-12-03T14:32:15.000Z",
     "location": "Camera 1",
@@ -115,7 +215,7 @@
     "location": "Camera 1",
     "weaponType": "Gun",
     "severity": "high",
-    "confidence": 0.90,
+    "confidence": 0.9,
     "duration": 14,
     "imageUrl": "/gifs/incident_1764378172113.gif"
   },
